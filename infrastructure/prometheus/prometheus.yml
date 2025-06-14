@@ -1,0 +1,38 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+
+  # Метрики с локальной машины
+  - job_name: 'node'
+    static_configs:
+      - targets: [ 'node-exporter:9100' ]
+
+  # PostgreSQL — через postgres_exporter
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['pg-exporter:9187']
+
+  # Redis — через redis_exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # Kafka — через kafka_exporter
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+
+  # Schema Registry — работает корректно
+  - job_name: 'schema-registry'
+    static_configs:
+      - targets: ['schema-registry:8081']
+
+  # MinIO — через minio-exporter
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['minio-exporter:9210']
+
+  - job_name: 'device-service' # замени на свои микросервисы
+    static_configs:
+      - targets: ['device-api:8080']

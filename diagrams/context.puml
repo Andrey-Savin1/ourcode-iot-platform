@@ -1,0 +1,34 @@
+@startuml
+!include <C4/C4_Context.puml>
+!include <office/Users/user.puml>
+
+LAYOUT_WITH_LEGEND()
+
+title Контекстная диаграмма IoT Monitoring Platform
+
+Person(engineer, "Инженер", "Пользователь, управляющий системой")
+System(iot_devices, "IoT-устройства", "Датчики, шлюзы, оборудование")
+System_Ext(keycloak, "Keycloak", "OAuth2 аутентификация")
+System_Ext(grafana, "Grafana", "Мониторинг и дашборды")
+System_Ext(postgres, "PostgreSQL", "Хранение состояний и команд")
+System_Ext(cassandra, "Cassandra", "Хранение временных рядов (телеметрия)")
+System_Ext(kafka, "Apache Kafka", "Шина событий")
+System_Ext(zookeeper, "ZooKeeper", "Координация Kafka")
+System_Ext(schema_registry, "Schema Registry", "Avro-схемы")
+System_Ext(camunda, "Camunda", "Оркестрация процессов")
+System_Ext(minio, "MinIO", "Хранение файлов и DLT")
+
+System(iot_platform, "IoT Monitoring Platform", "Платформа для работы с IoT-устройствами")
+
+Rel(engineer, iot_platform, "Использует")
+Rel(iot_platform, iot_devices, "Получает данные")
+Rel(iot_platform, postgres, "Чтение / запись данных")
+Rel(iot_platform, keycloak, "OAuth2")
+Rel(iot_platform, grafana, "Визуализация")
+Rel(iot_platform, kafka, "Публикация событий")
+Rel(kafka, zookeeper, "Использует")
+Rel(kafka, schema_registry, "Сериализация")
+Rel(iot_platform, camunda, "Запуск процессов")
+Rel(iot_platform, minio, "Загрузка файлов")
+Rel(iot_platform, cassandra, "Хранение телеметрии")
+@enduml

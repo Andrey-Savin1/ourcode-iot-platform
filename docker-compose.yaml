@@ -1,0 +1,264 @@
+
+services:
+  # PostgreSQL - хранение состояния устройств и команд
+  postgres:
+    image: postgres:15
+    container_name: device-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data # Монтируем том для сохранения данных
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Redis - кэш
+  redis:
+    image: redis:8.0-alpine
+    container_name: device-redis
+    ports:
+      - "${REDIS_PORT}:6379"
+    command: ["sh", "-c", "redis-server --appendonly yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping", "|", "grep", "PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Cassandra - хранение телеметрии
+  cassandra:
+    image: cassandra:4.1.9
+    container_name: device-telemetry
+    ports:
+      - "${CASSANDRA_PORT}:9042"
+    environment:
+      - CASSANDRA_BROADCAST_ADDRESS=localhost
+      - CASSANDRA_RPC_ADDRESS=0.0.0.0
+    volumes:
+      - cassandradata:/var/lib/cassandra/data
+    healthcheck:
+      test: [ "CMD", "cqlsh", "-e", "DESCRIBE KEYSPACES" ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s # позволяет подождать до первого успешного healthcheck'а
+
+  # Zookeeper - координатор для Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.9.0
+    container_name: kafka-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  # Kafka - шина событий
+  kafka:
+    image: confluentinc/cp-kafka:7.9.0
+    container_name: kafka-broker
+    ports:
+      - "${KAFKA_PORT}:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID}
+      KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZOOKEEPER_CONNECT}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: ${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP}
+      KAFKA_ADVERTISED_LISTENERS: ${KAFKA_ADVERTISED_LISTENERS}
+      KAFKA_INTER_BROKER_LISTENER: ${KAFKA_INTER_BROKER_LISTENER}
+      KAFKA_CFG_PROCESS_ROLES: broker
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+
+  kafka-ui:
+    container_name: kafkaUi
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "${KAFKA_UI_PORT}:8084"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+
+  # Schema Registry - для Avro-сериализации
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.9.0
+    container_name: avro-schema
+    ports:
+      - "${SCHEMA_REGISTRY_PORT}:8081"
+    depends_on:
+      - zookeeper
+      - kafka
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: ${KAFKA_ZOOKEEPER_CONNECT}
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_DEBUG: "true"
+    restart: on-failure
+
+  # MinIO - объектное хранилище
+  minio:
+    image: minio/minio:latest
+    container_name: minio-storage
+    ports:
+      - "${MINIO_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address :9001
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/cluster"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Keycloak - аутентификация и авторизация
+  keycloak:
+    image: keycloak/keycloak:26.0
+    container_name: auth-keycloak
+    ports:
+      - "${KEYCLOAK_PORT}:8080"
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    command: start-dev
+
+  # Camunda - оркестрация процессов
+  camunda:
+    image: camunda/camunda-bpm-platform:latest
+    container_name: workflow-camunda
+    ports:
+      - "${CAMUNDA_PORT}:8088"
+    environment:
+      CAMUNDA_WEBAPP_USER: ${CAMUNDA_WEBAPP_USER}
+      CAMUNDA_WEBAPP_PASSWORD: ${CAMUNDA_WEBAPP_PASSWORD}
+    depends_on:
+      - postgres
+
+  # Prometheus - сбор метрик
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: metrics-prometheus
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - schema-registry
+      - minio
+
+  # Grafana - визуализация метрик
+  grafana:
+    image: grafana/grafana:latest
+    container_name: metrics-grafana
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+    volumes:
+      - grafanadata:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  # Loki - централизованное логгирование
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: logs-loki
+    ports:
+      - "${LOKI_PORT}:3100"
+    volumes:
+      - ./infrastructure/loki/loki-config.yaml:/etc/loki/loki-config.yaml
+      - loki_data:/loki
+    command: [ "-config.expand-env", "-config.file=/etc/loki/loki-config.yaml" ]
+    depends_on:
+      - promtail
+
+  # Promtail - отправка логов в Loki
+  promtail:
+    image: grafana/promtail:3.4.4
+    container_name: logs-promtail
+    volumes:
+      - ./infrastructure/promtail:/mnt/logs
+      - /var/log:/var/log
+    command: ["-config.expand-env", "-config.file=/mnt/logs/promtail-config.yaml"]
+
+  node-exporter:
+    image: bitnami/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|run|rootfs/var/lib/docker/.+)"
+
+
+#  #Метрики Kafka
+#  kafka-exporter:
+#    image: danielqsj/kafka-exporter:latest
+#    container_name: kafka-exporter
+#    ports:
+#      - "9308:9308"
+#    environment:
+#      - KAFKA_EXPORTER_KAFKA_SERVER=kafka:9092
+#
+#  #Метрики Minio
+#  minio-exporter:
+#    image: minio/exporter:latest
+#    container_name: minio-exporter
+#    ports:
+#      - "9210:9210"
+#    depends_on:
+#      - minio
+#
+#  #Метрики Postgres
+#  pg-exporter:
+#    image: wrouesnel/postgres_exporter
+#    container_name: pg-exporter
+#    ports:
+#      - "9187:9187"
+#    environment:
+#      DATA_SOURCE_NAME: "postgresql://admin:admin@postgres:5432/device_state_db?sslmode=disable"
+#
+#  #Метрики Redis
+#  redis-exporter:
+#    image: oliver006/redis_exporter:latest
+#    container_name: redis-exporter
+#    ports:
+#      - "9121:9121"
+#    command:
+#      - "--redis.addr=redis:6379"
+
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  cassandradata:
+  grafanadata:
+  loki_data:
