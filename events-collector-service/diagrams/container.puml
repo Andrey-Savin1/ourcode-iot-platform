@@ -1,0 +1,33 @@
+@startuml
+!include <c4/C4_Container.puml>
+!include <office/Users/user.puml>
+
+'LAYOUT_WITH_LEGEND
+
+title Контейнерная (С4) диаграмма.
+
+Container_Ext(IoT_Devices, IoT Devices, "Встраиваемые устройства", "Отправляют телеметрию и получают команды")
+
+Container_Boundary(Remote, "Events Collector Service") {
+
+    Container(Event_Collector, Event Collector , "Spring Boot",  "Kafka -> Cassandra + \n device-id")
+    Container_Ext(Cassandra_Cluster, Cassandra_Cluster,"NoSQL", "Храненние событий")
+    Container_Ext(Kafka_Cluster, Kafka Cluster, "Kafka", "Event/ dit/ device-id топики")
+
+}
+
+Rel(IoT_Devices, Event_Collector, "Send new events")
+
+Rel(Event_Collector, Cassandra_Cluster, "Write: \n события")
+Rel(Event_Collector, Cassandra_Cluster, "Write: \n device_id")
+
+Rel(Event_Collector, Kafka_Cluster, "Consume: \n event-topic")
+Rel(Event_Collector, Kafka_Cluster, "Produce: \n device-id-topic")
+Rel(Event_Collector, Kafka_Cluster, "Produce: \n dlt-topic")
+
+note right of Kafka_Cluster
+    Topics:
+    - event-topic: сырые события
+    - device-id-topic: идентификаторы устройств
+end note
+@enduml

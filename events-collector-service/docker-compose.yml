@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  events-collector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: events-collector-service
+    hostname: events-collector
+    ports:
+      - "9991:9991"
+    volumes:
+      - ~/.m2:/home/gradle/.m2  # Монтируем локальный .m2 в контейнер
+    networks:
+      - app-net
+    # Добавляем скрипт для пересборки при старте
+    command: sh -c "cd /events-collector-service && gradle clean build -x test --no-daemon && java -jar /events-collector-service.jar"
+
+networks:
+  app-net:
+    external: true
+    name: app-network

@@ -1,0 +1,9 @@
+
+{
+  "type": "record",
+  "name": "DeviceID",
+  "namespace": "ru.savin.eventscollectorservice",
+  "fields": [
+    { "name": "deviceId", "type": "string" }
+  ]
+}

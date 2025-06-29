@@ -7,5 +7,6 @@
 # Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
+create_topics.sh
 # Zeppelin ignored files
 /ZeppelinRemoteNotebooks/

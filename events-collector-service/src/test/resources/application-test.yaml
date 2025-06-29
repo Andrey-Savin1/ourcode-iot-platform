@@ -1,0 +1,42 @@
+server:
+  port: 9991
+
+spring:
+  application:
+    name: events-collector-service
+
+#  kafka:
+#    bootstrap-servers: localhost:9092
+#    consumer:
+#      group-id: events-collector-group
+#      auto-offset-reset: earliest
+#      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+#      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+#      properties:
+#        schema.registry.url: http://localhost:8081
+#        specific.avro.reader: true # Чтобы получать POJO вместо GenericRecord
+#    producer:
+#      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+#      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+#      properties:
+#        schema.registry.url: http://localhost:8081
+
+  # Конфигурация Cassandra (через DataStax Java Driver)
+  cassandra:
+    keyspace-name: device
+    schema-action: CREATE_IF_NOT_EXISTS
+    contact-points:
+      - localhost:9042
+    local-datacenter: datacenter1
+
+
+
+logging:
+  level:
+    ru.savin.eventscollectorservice: DEBUG   # Уровень логов для приложения
+    org.springframework: INFO                # Уровень логов Spring
+    com.datastax: info                       # Логи Cassandra драйвера
+
+
+
+

@@ -1,0 +1,11 @@
+-- CREATE KEYSPACE IF NOT EXISTS device_events_by_device
+--     WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
+--
+-- USE device_events_by_device;
+--
+-- CREATE TABLE IF NOT EXISTS sensor_data (
+--                                            sensor_id text,
+--                                            timestamp timestamp,
+--                                            value double,
+--                                            PRIMARY KEY (sensor_id, timestamp)
+-- ) WITH CLUSTERING ORDER BY (timestamp DESC);

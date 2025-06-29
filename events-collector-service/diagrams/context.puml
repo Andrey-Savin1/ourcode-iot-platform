@@ -1,0 +1,20 @@
+@startuml
+!include <C4/C4_Context.puml>
+!include <office/Users/user.puml>
+
+LAYOUT_WITH_LEGEND()
+
+title Контекстная диаграмма events-collector-service
+
+System_Ext(IoT_Devices, IoT Devices, "Встраиваемые устройства, отправляют телеметрию и получают команды")
+System(Event_Collector, Event Collector Service, "Сервис принимающий и обрабатываюй входящие события от датчиков, шлюзов, оборудования")
+
+System_Ext(cassandra, "Cassandra", "Хранение временных рядов (телеметрия)")
+System_Ext(kafka, "Apache Kafka", "Шина событий")
+
+
+Rel(IoT_Devices, Event_Collector, "Отправляет события")
+Rel(Event_Collector, kafka, "Получает события/Отправляет id устройства")
+Rel(Event_Collector, cassandra, "Хранение телеметрии")
+
+@enduml

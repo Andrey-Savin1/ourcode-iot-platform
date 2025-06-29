@@ -1,4 +1,3 @@
-
 services:
   # PostgreSQL - хранение состояния устройств и команд
   postgres:
@@ -13,11 +12,14 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data # Монтируем том для сохранения данных
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 5s
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - app-net
+
 
   # Redis - кэш
   redis:
@@ -25,41 +27,121 @@ services:
     container_name: device-redis
     ports:
       - "${REDIS_PORT}:6379"
-    command: ["sh", "-c", "redis-server --appendonly yes"]
+    command: [ "sh", "-c", "redis-server --appendonly yes" ]
     volumes:
       - redisdata:/data
+    networks:
+      - app-net
     healthcheck:
-      test: ["CMD", "redis-cli", "ping", "|", "grep", "PONG"]
+      test: [ "CMD", "redis-cli", "ping", "|", "grep", "PONG" ]
       interval: 5s
       timeout: 5s
       retries: 5
 
+
   # Cassandra - хранение телеметрии
-  cassandra:
+  cassandra-node1:
     image: cassandra:4.1.9
-    container_name: device-telemetry
+    container_name: cassandra-node1
+    hostname: cassandra-node1
     ports:
-      - "${CASSANDRA_PORT}:9042"
+      - "${CASSANDRA_PORT1}:9042"
     environment:
-      - CASSANDRA_BROADCAST_ADDRESS=localhost
+      - CASSANDRA_LISTEN_ADDRESS=cassandra-node1
       - CASSANDRA_RPC_ADDRESS=0.0.0.0
+      - CASSANDRA_BROADCAST_ADDRESS=cassandra-node1
+      - CASSANDRA_BROADCAST_RPC_ADDRESS= 127.0.0.1
+      - CASSANDRA_SEEDS=cassandra-node1,cassandra-node2
+      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
+      - CASSANDRA_DC=datacenter1
+      - MAX_HEAP_SIZE=1500M
+      - HEAP_NEWSIZE=400M
+      - CASSANDRA_NUM_TOKENS=32
     volumes:
-      - cassandradata:/var/lib/cassandra/data
+      - cassandra-data1:/var/lib/cassandra/data
+    networks:
+      - app-net
     healthcheck:
-      test: [ "CMD", "cqlsh", "-e", "DESCRIBE KEYSPACES" ]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 30s # позволяет подождать до первого успешного healthcheck'а
+      test: [ "CMD", "cqlsh", "-u", "cassandra", "-p", "cassandra", "-e", "DESCRIBE CLUSTER;" ]
+      interval: 15s
+      timeout: 20s
+      retries: 30
+      start_period: 60s  # ждать 60 сек перед первой проверко
+
+
+  cassandra-node2:
+    image: cassandra:4.1.9
+    container_name: cassandra-node2
+    hostname: cassandra-node2
+    ports:
+      - "${CASSANDRA_PORT2}:9042"
+    environment:
+      - CASSANDRA_LISTEN_ADDRESS=cassandra-node2
+      - CASSANDRA_RPC_ADDRESS=0.0.0.0
+      - CASSANDRA_BROADCAST_ADDRESS=cassandra-node2
+      - CASSANDRA_SEEDS=cassandra-node1
+      - CASSANDRA_BROADCAST_RPC_ADDRESS= 127.0.0.1
+      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
+      - CASSANDRA_DC=datacenter1
+      - MAX_HEAP_SIZE=1500M
+      - HEAP_NEWSIZE=400M
+      - CASSANDRA_NUM_TOKENS=32
+    volumes:
+      - cassandra-data2:/var/lib/cassandra/data
+    depends_on:
+      cassandra-node1:
+        condition: service_healthy
+    networks:
+      - app-net
+    healthcheck:
+      test: [ "CMD", "cqlsh", "-u", "cassandra", "-p", "cassandra", "-e", "DESCRIBE CLUSTER;" ]
+      interval: 15s
+      timeout: 20s
+      retries: 30
+      start_period: 60s  # ждать 60 сек перед первой проверко
+
+
+#  cassandra-node3:
+#    image: cassandra:4.1.9
+#    container_name: cassandra-node3
+#    hostname: cassandra-node3
+#    ports:
+#      - "${CASSANDRA_PORT3}:9042"
+#    environment:
+#      - CASSANDRA_LISTEN_ADDRESS=cassandra-node3
+#      - CASSANDRA_RPC_ADDRESS=0.0.0.0
+#      - CASSANDRA_BROADCAST_ADDRESS=cassandra-node3
+#      - CASSANDRA_SEEDS=cassandra-node1
+#      - CASSANDRA_BROADCAST_RPC_ADDRESS= 127.0.0.1 #это
+#      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
+#      - CASSANDRA_DC=datacenter1
+#      - MAX_HEAP_SIZE=1500M
+#      - HEAP_NEWSIZE=400M
+#      - CASSANDRA_NUM_TOKENS=32
+#    volumes:
+#      - cassandra-data3:/var/lib/cassandra/data
+#    depends_on:
+#      cassandra-node2:
+#        condition: service_healthy
+#    networks:
+#      - app-net
+#    healthcheck:
+#      test: [ "CMD", "cqlsh", "-u", "cassandra", "-p", "cassandra", "-e", "DESCRIBE CLUSTER;" ]
+#      interval: 15s
+#      timeout: 20s
+#      retries: 30
+#      start_period: 60s  # ждать 60 сек перед первой проверко
+
 
   # Zookeeper - координатор для Kafka
   zookeeper:
     image: confluentinc/cp-zookeeper:7.9.0
-    container_name: kafka-zookeeper
     ports:
       - "2181:2181"
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - app-net
 
   # Kafka - шина событий
   kafka:
@@ -67,65 +149,99 @@ services:
     container_name: kafka-broker
     ports:
       - "${KAFKA_PORT}:9092"
+      - "${LOCAL_KAFKA_PORT}:9093"
     depends_on:
       - zookeeper
     environment:
-      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID}
       KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZOOKEEPER_CONNECT}
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: ${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP}
       KAFKA_ADVERTISED_LISTENERS: ${KAFKA_ADVERTISED_LISTENERS}
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
       KAFKA_INTER_BROKER_LISTENER: ${KAFKA_INTER_BROKER_LISTENER}
-      KAFKA_CFG_PROCESS_ROLES: broker
-      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CFG_LISTENERS: PLAINTEXT://:9092
-      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: true
+      # Включаем поддержку Avro и Schema Registry
+      KAFKA_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+    networks:
+      - app-net
+    volumes:
+      # Монтируем наш скрипт внутрь контейнера
+      - type: bind
+        source: ./create_topics.sh
+        target: /create_topics.sh
+    healthcheck:
+      test: [ "CMD", "sh", "-c", "nc -z -v localhost 9092" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 25s
+    command:
+      - /bin/sh
+      - -c
+      - |
+        # Запускаем оригинальную команду Kafka в фоне
+        /etc/confluent/docker/run &
+        # Ждём, пока Kafka полностью стартует
+        sleep 15
+        # Делаем скрипт исполняемым
+        chmod +x /create_topics.sh
+        # Выполняем скрипт создания топиков
+        /create_topics.sh
+        # Ожидаем завершения всех процессов
+        wait
 
   kafka-ui:
     container_name: kafkaUi
     image: provectuslabs/kafka-ui:latest
     ports:
-      - "${KAFKA_UI_PORT}:8084"
+      - "${KAFKA_UI_PORT}:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
       KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+    networks:
+      - app-net
 
   # Schema Registry - для Avro-сериализации
   schema-registry:
     image: confluentinc/cp-schema-registry:7.9.0
-    container_name: avro-schema
+    container_name: schema-registry
     ports:
-      - "${SCHEMA_REGISTRY_PORT}:8081"
+      - "${SCHEMA_REGISTRY_PORT}:8081"  # внешний:внутренний
     depends_on:
       - zookeeper
-      - kafka
+     # - kafka
     environment:
-      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: ${KAFKA_ZOOKEEPER_CONNECT}
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
       SCHEMA_REGISTRY_DEBUG: "true"
-    restart: on-failure
+    networks:
+      - app-net
 
-  # MinIO - объектное хранилище
-  minio:
-    image: minio/minio:latest
-    container_name: minio-storage
-    ports:
-      - "${MINIO_PORT}:9000"
-      - "${MINIO_CONSOLE_PORT}:9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    command: server /data --console-address :9001
-    volumes:
-      - miniodata:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/cluster"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+#  # MinIO - объектное хранилище
+#  minio:
+#    image: minio/minio:latest
+#    container_name: minio-storage
+#    ports:
+#      - "${MINIO_PORT}:9000"
+#      - "${MINIO_CONSOLE_PORT}:9001"
+#    environment:
+#      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+#      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+#    command: server /data --console-address :9001
+#    volumes:
+#      - miniodata:/data
+#    healthcheck:
+#      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/cluster" ]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#    networks:
+#      - app-net
 
   # Keycloak - аутентификация и авторизация
   keycloak:
@@ -137,18 +253,22 @@ services:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
     command: start-dev
+    networks:
+      - app-net
 
-  # Camunda - оркестрация процессов
-  camunda:
-    image: camunda/camunda-bpm-platform:latest
-    container_name: workflow-camunda
-    ports:
-      - "${CAMUNDA_PORT}:8088"
-    environment:
-      CAMUNDA_WEBAPP_USER: ${CAMUNDA_WEBAPP_USER}
-      CAMUNDA_WEBAPP_PASSWORD: ${CAMUNDA_WEBAPP_PASSWORD}
-    depends_on:
-      - postgres
+  #  # Camunda - оркестрация процессов
+  #  camunda:
+  #    image: camunda/camunda-bpm-platform:latest
+  #    container_name: workflow-camunda
+  #    ports:
+  #      - "${CAMUNDA_PORT}:8088"
+  #    environment:
+  #      CAMUNDA_WEBAPP_USER: ${CAMUNDA_WEBAPP_USER}
+  #      CAMUNDA_WEBAPP_PASSWORD: ${CAMUNDA_WEBAPP_PASSWORD}
+  #    depends_on:
+  #      - postgres
+  #    networks:
+  #      - app-net
 
   # Prometheus - сбор метрик
   prometheus:
@@ -161,11 +281,13 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
     depends_on:
-      - postgres
+#     - postgres
       - redis
       - kafka
       - schema-registry
-      - minio
+#      - minio
+    networks:
+      - app-net
 
   # Grafana - визуализация метрик
   grafana:
@@ -180,28 +302,34 @@ services:
       - grafanadata:/var/lib/grafana
     depends_on:
       - prometheus
+    networks:
+      - app-net
 
-  # Loki - централизованное логгирование
-  loki:
-    image: grafana/loki:2.9.0
-    container_name: logs-loki
-    ports:
-      - "${LOKI_PORT}:3100"
-    volumes:
-      - ./infrastructure/loki/loki-config.yaml:/etc/loki/loki-config.yaml
-      - loki_data:/loki
-    command: [ "-config.expand-env", "-config.file=/etc/loki/loki-config.yaml" ]
-    depends_on:
-      - promtail
-
-  # Promtail - отправка логов в Loki
-  promtail:
-    image: grafana/promtail:3.4.4
-    container_name: logs-promtail
-    volumes:
-      - ./infrastructure/promtail:/mnt/logs
-      - /var/log:/var/log
-    command: ["-config.expand-env", "-config.file=/mnt/logs/promtail-config.yaml"]
+#  # Loki - централизованное логгирование
+#  loki:
+#    image: grafana/loki:2.9.0
+#    container_name: logs-loki
+#    ports:
+#      - "${LOKI_PORT}:3100"
+#    volumes:
+#      - ./infrastructure/loki/loki-config.yaml:/etc/loki/loki-config.yaml
+#      - loki_data:/loki
+#    command: [ "-config.expand-env", "-config.file=/etc/loki/loki-config.yaml" ]
+#    depends_on:
+#      - promtail
+#    networks:
+#      - app-net
+#
+#  # Promtail - отправка логов в Loki
+#  promtail:
+#    image: grafana/promtail:3.4.4
+#    container_name: logs-promtail
+#    volumes:
+#      - ./infrastructure/promtail:/mnt/logs
+#      - /var/log:/var/log
+#    command: [ "-config.expand-env", "-config.file=/mnt/logs/promtail-config.yaml" ]
+#    networks:
+#      - app-net
 
   node-exporter:
     image: bitnami/node-exporter:latest
@@ -216,16 +344,21 @@ services:
       - "--path.procfs=/host/proc"
       - "--path.sysfs=/host/sys"
       - "--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|run|rootfs/var/lib/docker/.+)"
+    networks:
+      - app-net
 
 
-#  #Метрики Kafka
-#  kafka-exporter:
-#    image: danielqsj/kafka-exporter:latest
-#    container_name: kafka-exporter
-#    ports:
-#      - "9308:9308"
-#    environment:
-#      - KAFKA_EXPORTER_KAFKA_SERVER=kafka:9092
+  #Метрики Kafka
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.9.0
+    container_name: kafka-exporter
+    restart: unless-stopped
+    ports:
+      - "9308:9308"
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+    networks:
+      - app-net
 #
 #  #Метрики Minio
 #  minio-exporter:
@@ -262,3 +395,11 @@ volumes:
   cassandradata:
   grafanadata:
   loki_data:
+  cassandra-data1:
+  cassandra-data2:
+  cassandra-data3:
+
+networks:
+  app-net:
+    driver: bridge
+    name: app-network

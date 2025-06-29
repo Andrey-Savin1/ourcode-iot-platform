@@ -3,36 +3,42 @@ global:
 
 scrape_configs:
 
-  # Метрики с локальной машины
+  # Метрики с локальной машины (контейнера)
   - job_name: 'node'
     static_configs:
       - targets: [ 'node-exporter:9100' ]
 
-  # PostgreSQL — через postgres_exporter
-  - job_name: 'postgres'
-    static_configs:
-      - targets: ['pg-exporter:9187']
-
-  # Redis — через redis_exporter
-  - job_name: 'redis'
-    static_configs:
-      - targets: ['redis-exporter:9121']
-
   # Kafka — через kafka_exporter
-  - job_name: 'kafka'
+  - job_name: 'kafka-exporter'
     static_configs:
-      - targets: ['kafka-exporter:9308']
+      - targets: [ 'kafka-exporter:9308' ]
+    metrics_path: /metrics
 
-  # Schema Registry — работает корректно
-  - job_name: 'schema-registry'
+  - job_name: 'device-service'
+    metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['schema-registry:8081']
+      - targets: [ 'events-collector-service:9991' ]
 
-  # MinIO — через minio-exporter
-  - job_name: 'minio'
-    static_configs:
-      - targets: ['minio-exporter:9210']
 
-  - job_name: 'device-service' # замени на свои микросервисы
-    static_configs:
-      - targets: ['device-api:8080']
+#  # PostgreSQL — через postgres_exporter
+#  - job_name: 'postgres'
+#    static_configs:
+#      - targets: ['pg-exporter:9187']
+#
+#  # Redis — через redis_exporter
+#  - job_name: 'redis'
+#    static_configs:
+#      - targets: ['redis-exporter:9121']
+#
+
+
+#  # Schema Registry — работает корректно
+#  - job_name: 'schema-registry'
+#    static_configs:
+#      - targets: ['schema-registry:8081']
+#
+#  # MinIO — через minio-exporter
+#  - job_name: 'minio'
+#    static_configs:
+#      - targets: ['minio-exporter:9210']
+
