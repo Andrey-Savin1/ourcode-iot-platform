@@ -1,0 +1,25 @@
+@startuml
+!include <c4/C4_Container.puml>
+!include <office/Users/user.puml>
+
+'LAYOUT_WITH_LEGEND
+
+title Контейнерная (С4) диаграмма.
+
+Container_Boundary(Remote, "Device Collector Service") {
+
+    Container(Device_collector, Device collector, "Spring Boot",  "Kafka -> Avro -> Postgres ")
+    Container_Ext(PostgreSQL, PostgreSql,"Sharding/SQL", "Cообщения о новых и изменённых устройствах")
+    Container_Ext(Kafka_Cluster, Kafka Cluster, "Kafka", "device-id-topic/device-id-topic-retry/ \n DLT топики")
+
+}
+
+Rel(Kafka_Cluster, Device_collector, "Consume: \n device-id-topic")
+Rel(Device_collector, Kafka_Cluster, "Produce: \n dlt-topic")
+Rel(Device_collector, PostgreSQL, "Cохраняет/обновляет информацию о устройствах")
+
+note right of Kafka_Cluster
+    Topics:
+    - device-id-topic: топик с событиями по устройствам
+end note
+@enduml

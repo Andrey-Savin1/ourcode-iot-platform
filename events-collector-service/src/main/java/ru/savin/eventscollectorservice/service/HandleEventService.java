@@ -7,8 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import ru.savin.eventscollectorservice.Device;
 import ru.savin.eventscollectorservice.DeviceEvent;
-import ru.savin.eventscollectorservice.DeviceID;
 import ru.savin.eventscollectorservice.config.CustomMetricsConfig;
 import ru.savin.eventscollectorservice.model.DeviceEventKey;
 import ru.savin.eventscollectorservice.model.DeviceEvents;
@@ -55,8 +55,11 @@ public class HandleEventService {
 
                 // 3. Отправляем в Kafka только если device_id новый
                 if (!isNewDevice.wasApplied()) {
-                    deviceIdProducer.sendDeviceId(DeviceID.newBuilder()
+                    deviceIdProducer.sendDeviceId(Device.newBuilder()
                             .setDeviceId(event.getDeviceId())
+                            .setCreatedAt(System.currentTimeMillis())
+                            .setDeviceType(event.getType())
+                            .setMeta("поменять в event-collector")
                             .build());
                 }
             }

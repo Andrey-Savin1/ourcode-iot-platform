@@ -1,0 +1,62 @@
+server:
+  port: 9992
+
+spring:
+  application:
+    name: device-collector-service
+  profiles:
+    # active: flyway-ds0 # Профиль для миграций в первую базу
+    # active: flyway-ds1 # Профиль для миграций во вторую базу
+    active: sharding # Профиль где работает shardingsphere и отключены миграции
+
+  kafka:
+    bootstrap-servers: kafka:9092 # Для запуска в контейнере
+   # bootstrap-servers: localhost:9093 # Для локального запуска
+    consumer:
+     # group-id: events-collector-group
+      group-id: device-collector-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+      properties:
+        schema.registry.url: http://schema-registry:8081
+       # schema.registry.url: http://localhost:8085
+        specific.avro.reader: true # Чтобы получать POJO вместо GenericRecord
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      properties:
+        schema.registry.url: http://schema-registry:8081
+       # schema.registry.url: http://localhost:8085
+
+
+logging:
+  level:
+    ru.savin.devicecollectorservice: DEBUG   # Уровень логов для приложения
+    org.springframework: INFO                # Уровень логов Spring
+    org.springframework.kafka: info         # Уровень логов Kafka
+
+topic:
+  device_id_topic: device-id-topic
+
+
+#Метрики
+management:
+  server:
+    port: 9992
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: events-collector-service
+    enable:
+      all: true
+      kafka.consumer: true
+      kafka.producer: true
+
+

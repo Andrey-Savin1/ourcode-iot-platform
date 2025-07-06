@@ -7,9 +7,9 @@
 ## Если с хоста (через порт 9092):
 ## BOOTSTRAP="localhost:9092"
 
-MAX_RETRIES=5
-RETRY_INTERVAL=5
-BOOTSTRAP_SERVER="localhost:9092"
+MAX_RETRIES=3
+RETRY_INTERVAL=3
+BOOTSTRAP_SERVER="localhost:9093"
 
 echo "Проверяем доступность Kafka..."
 

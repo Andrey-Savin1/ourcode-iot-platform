@@ -1,0 +1,2 @@
+CREATE DATABASE device_0;
+CREATE DATABASE device_1;

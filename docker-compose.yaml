@@ -6,11 +6,12 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+#      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data # Монтируем том для сохранения данных
+      - ./infrastructure/postgres/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 5s
@@ -21,84 +22,84 @@ services:
       - app-net
 
 
-  # Redis - кэш
-  redis:
-    image: redis:8.0-alpine
-    container_name: device-redis
-    ports:
-      - "${REDIS_PORT}:6379"
-    command: [ "sh", "-c", "redis-server --appendonly yes" ]
-    volumes:
-      - redisdata:/data
-    networks:
-      - app-net
-    healthcheck:
-      test: [ "CMD", "redis-cli", "ping", "|", "grep", "PONG" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+#  # Redis - кэш
+#  redis:
+#    image: redis:8.0-alpine
+#    container_name: device-redis
+#    ports:
+#      - "${REDIS_PORT}:6379"
+#    command: [ "sh", "-c", "redis-server --appendonly yes" ]
+#    volumes:
+#      - redisdata:/data
+#    networks:
+#      - app-net
+#    healthcheck:
+#      test: [ "CMD", "redis-cli", "ping", "|", "grep", "PONG" ]
+#      interval: 5s
+#      timeout: 5s
+#      retries: 5
 
 
-  # Cassandra - хранение телеметрии
-  cassandra-node1:
-    image: cassandra:4.1.9
-    container_name: cassandra-node1
-    hostname: cassandra-node1
-    ports:
-      - "${CASSANDRA_PORT1}:9042"
-    environment:
-      - CASSANDRA_LISTEN_ADDRESS=cassandra-node1
-      - CASSANDRA_RPC_ADDRESS=0.0.0.0
-      - CASSANDRA_BROADCAST_ADDRESS=cassandra-node1
-      - CASSANDRA_BROADCAST_RPC_ADDRESS= 127.0.0.1
-      - CASSANDRA_SEEDS=cassandra-node1,cassandra-node2
-      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
-      - CASSANDRA_DC=datacenter1
-      - MAX_HEAP_SIZE=1500M
-      - HEAP_NEWSIZE=400M
-      - CASSANDRA_NUM_TOKENS=32
-    volumes:
-      - cassandra-data1:/var/lib/cassandra/data
-    networks:
-      - app-net
-    healthcheck:
-      test: [ "CMD", "cqlsh", "-u", "cassandra", "-p", "cassandra", "-e", "DESCRIBE CLUSTER;" ]
-      interval: 15s
-      timeout: 20s
-      retries: 30
-      start_period: 60s  # ждать 60 сек перед первой проверко
-
-
-  cassandra-node2:
-    image: cassandra:4.1.9
-    container_name: cassandra-node2
-    hostname: cassandra-node2
-    ports:
-      - "${CASSANDRA_PORT2}:9042"
-    environment:
-      - CASSANDRA_LISTEN_ADDRESS=cassandra-node2
-      - CASSANDRA_RPC_ADDRESS=0.0.0.0
-      - CASSANDRA_BROADCAST_ADDRESS=cassandra-node2
-      - CASSANDRA_SEEDS=cassandra-node1
-      - CASSANDRA_BROADCAST_RPC_ADDRESS= 127.0.0.1
-      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
-      - CASSANDRA_DC=datacenter1
-      - MAX_HEAP_SIZE=1500M
-      - HEAP_NEWSIZE=400M
-      - CASSANDRA_NUM_TOKENS=32
-    volumes:
-      - cassandra-data2:/var/lib/cassandra/data
-    depends_on:
-      cassandra-node1:
-        condition: service_healthy
-    networks:
-      - app-net
-    healthcheck:
-      test: [ "CMD", "cqlsh", "-u", "cassandra", "-p", "cassandra", "-e", "DESCRIBE CLUSTER;" ]
-      interval: 15s
-      timeout: 20s
-      retries: 30
-      start_period: 60s  # ждать 60 сек перед первой проверко
+#  # Cassandra - хранение телеметрии
+#  cassandra-node1:
+#    image: cassandra:4.1.9
+#    container_name: cassandra-node1
+#    hostname: cassandra-node1
+#    ports:
+#      - "${CASSANDRA_PORT1}:9042"
+#    environment:
+#      - CASSANDRA_LISTEN_ADDRESS=cassandra-node1
+#      - CASSANDRA_RPC_ADDRESS=0.0.0.0
+#      - CASSANDRA_BROADCAST_ADDRESS=cassandra-node1
+#      - CASSANDRA_BROADCAST_RPC_ADDRESS= 127.0.0.1
+#      - CASSANDRA_SEEDS=cassandra-node1,cassandra-node2
+#      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
+#      - CASSANDRA_DC=datacenter1
+#      - MAX_HEAP_SIZE=1500M
+#      - HEAP_NEWSIZE=400M
+#      - CASSANDRA_NUM_TOKENS=32
+#    volumes:
+#      - cassandra-data1:/var/lib/cassandra/data
+#    networks:
+#      - app-net
+#    healthcheck:
+#      test: [ "CMD", "cqlsh", "-u", "cassandra", "-p", "cassandra", "-e", "DESCRIBE CLUSTER;" ]
+#      interval: 15s
+#      timeout: 20s
+#      retries: 30
+#      start_period: 60s  # ждать 60 сек перед первой проверко
+#
+#
+#  cassandra-node2:
+#    image: cassandra:4.1.9
+#    container_name: cassandra-node2
+#    hostname: cassandra-node2
+#    ports:
+#      - "${CASSANDRA_PORT2}:9042"
+#    environment:
+#      - CASSANDRA_LISTEN_ADDRESS=cassandra-node2
+#      - CASSANDRA_RPC_ADDRESS=0.0.0.0
+#      - CASSANDRA_BROADCAST_ADDRESS=cassandra-node2
+#      - CASSANDRA_SEEDS=cassandra-node1
+#      - CASSANDRA_BROADCAST_RPC_ADDRESS= 127.0.0.1
+#      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
+#      - CASSANDRA_DC=datacenter1
+#      - MAX_HEAP_SIZE=1500M
+#      - HEAP_NEWSIZE=400M
+#      - CASSANDRA_NUM_TOKENS=32
+#    volumes:
+#      - cassandra-data2:/var/lib/cassandra/data
+#    depends_on:
+#      cassandra-node1:
+#        condition: service_healthy
+#    networks:
+#      - app-net
+#    healthcheck:
+#      test: [ "CMD", "cqlsh", "-u", "cassandra", "-p", "cassandra", "-e", "DESCRIBE CLUSTER;" ]
+#      interval: 15s
+#      timeout: 20s
+#      retries: 30
+#      start_period: 60s  # ждать 60 сек перед первой проверко
 
 
 #  cassandra-node3:
@@ -172,7 +173,7 @@ services:
         source: ./create_topics.sh
         target: /create_topics.sh
     healthcheck:
-      test: [ "CMD", "sh", "-c", "nc -z -v localhost 9092" ]
+      test: [ "CMD", "sh", "-c", "nc -z -v localhost 9093" ]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -184,7 +185,7 @@ services:
         # Запускаем оригинальную команду Kafka в фоне
         /etc/confluent/docker/run &
         # Ждём, пока Kafka полностью стартует
-        sleep 15
+        sleep 30
         # Делаем скрипт исполняемым
         chmod +x /create_topics.sh
         # Выполняем скрипт создания топиков
@@ -213,7 +214,7 @@ services:
       - "${SCHEMA_REGISTRY_PORT}:8081"  # внешний:внутренний
     depends_on:
       - zookeeper
-     # - kafka
+      - kafka
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
@@ -281,8 +282,8 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
     depends_on:
-#     - postgres
-      - redis
+      - postgres
+ #     - redis
       - kafka
       - schema-registry
 #      - minio
@@ -359,6 +360,23 @@ services:
       - KAFKA_BROKERS=kafka:9092
     networks:
       - app-net
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.0
+    container_name: cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    ports:
+      - "9101:8080"  # внешний:внутренний
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    networks:
+      - app-net
 #
 #  #Метрики Minio
 #  minio-exporter:
@@ -398,6 +416,8 @@ volumes:
   cassandra-data1:
   cassandra-data2:
   cassandra-data3:
+  cadvisor:
+
 
 networks:
   app-net:

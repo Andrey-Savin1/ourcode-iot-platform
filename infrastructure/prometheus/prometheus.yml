@@ -14,10 +14,23 @@ scrape_configs:
       - targets: [ 'kafka-exporter:9308' ]
     metrics_path: /metrics
 
-  - job_name: 'device-service'
+  - job_name: 'event-collector'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: [ 'events-collector-service:9991' ]
+
+  - job_name: 'device-collector'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: [ 'device-collector-service:9992' ]
+
+  #Метрики контейнеров
+  - job_name: 'cadvisor'
+    scrape_interval: 5s
+    static_configs:
+      - targets: [ 'cadvisor:8080' ]
+
+
 
 
 #  # PostgreSQL — через postgres_exporter

@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  device-collector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: device-collector-service
+    hostname: device-collector
+    ports:
+      - "9992:9992"
+    networks:
+      - app-net
+    # Добавляем скрипт для пересборки при старте
+    command: sh -c "cd /device-collector-service && gradle clean build -x test --no-daemon && java -jar /device-collector-service.jar"
+
+networks:
+  app-net:
+    external: true
+    name: app-network

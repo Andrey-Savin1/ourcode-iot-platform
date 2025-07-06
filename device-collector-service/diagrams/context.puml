@@ -1,0 +1,17 @@
+@startuml
+!include <C4/C4_Context.puml>
+!include <office/Users/user.puml>
+
+LAYOUT_WITH_LEGEND()
+
+title Контекстная диаграмма device-collector-service
+
+System_Ext(kafka, "Apache Kafka", "Шина событий")
+System(Device_Collector, Device Collector Service, "Сервис принимающий и сохраняющий входящие сообщения о новых и изменённых устройствах")
+System_Ext(PostgreSQL, PostgreSql, "Cообщения о новых и изменённых устройствах")
+
+
+Rel(kafka, Device_Collector, "Отправляет события")
+Rel(Device_Collector, PostgreSQL, "Хранение входящего сообщения")
+
+@enduml

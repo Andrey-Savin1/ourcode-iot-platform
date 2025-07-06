@@ -1,0 +1,39 @@
+dataSources:
+  ds_0:
+    dataSourceClassName: com.zaxxer.hikari.HikariDataSource
+    driverClassName: org.postgresql.Driver
+  #  url: jdbc:postgresql://localhost:5433/device_0 для локального запуска
+    url: jdbc:postgresql://postgres:5432/device_0
+    username: admin
+    password: admin
+
+  ds_1:
+    dataSourceClassName: com.zaxxer.hikari.HikariDataSource
+    driverClassName: org.postgresql.Driver
+ #   url: jdbc:postgresql://localhost:5433/device_1
+    url: jdbc:postgresql://postgres:5432/device_1
+    username: admin
+    password: admin
+
+rules:
+  - !SHARDING
+    tables:
+      devices:
+        actualDataNodes: ds_${0..1}.devices
+        databaseStrategy:
+          standard:
+            shardingColumn: device_id
+            shardingAlgorithmName: device-database-algorithm
+    shardingAlgorithms:
+      device-table-inline:
+        type: INLINE
+        props:
+          algorithm-expression: devices
+      device-database-algorithm:
+        type: INLINE
+        props:
+          algorithm-expression: ds_${Math.abs(device_id.hashCode()) % 2}
+
+props:
+  sql-show: true
+

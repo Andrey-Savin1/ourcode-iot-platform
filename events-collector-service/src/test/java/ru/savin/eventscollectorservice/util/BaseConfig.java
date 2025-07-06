@@ -58,12 +58,12 @@ public abstract class BaseConfig {
             String createTableDeviceId = "CREATE TABLE IF NOT EXISTS device.device_ids (device_id TEXT PRIMARY KEY)";
 
             session.execute("SELECT release_version FROM system.local");
-            log.info("✅ Cassandra доступна");
+            log.info("Cassandra доступна");
             session.execute(createKeyspace);
             session.execute(createTableDeviceEvent);
             session.execute(createTableDeviceId);
 
-            log.info("✅ Keyspace и таблицы успешно созданы или уже существуют.");
+            log.info("Keyspace и таблицы успешно созданы или уже существуют.");
         } catch (Exception e) {
             log.error("Ошибка при создании keyspace 'device': {}", e.getMessage());
         }
