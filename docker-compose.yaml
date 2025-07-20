@@ -22,22 +22,35 @@ services:
       - app-net
 
 
-#  # Redis - кэш
-#  redis:
-#    image: redis:8.0-alpine
-#    container_name: device-redis
-#    ports:
-#      - "${REDIS_PORT}:6379"
-#    command: [ "sh", "-c", "redis-server --appendonly yes" ]
-#    volumes:
-#      - redisdata:/data
-#    networks:
-#      - app-net
-#    healthcheck:
-#      test: [ "CMD", "redis-cli", "ping", "|", "grep", "PONG" ]
-#      interval: 5s
-#      timeout: 5s
-#      retries: 5
+  # Redis - кэш
+  redis:
+    image: redis:8.0-alpine
+    container_name: device-redis
+    ports:
+      - "${REDIS_PORT}:6379"
+    command: [ "sh", "-c", "redis-server --appendonly yes" ]
+    volumes:
+      - redisdata:/data
+    networks:
+      - app-net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping", "|", "grep", "PONG" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: redisinsight
+    restart: always
+    depends_on:
+      - redis
+    ports:
+      - "5540:5540"
+    volumes:
+      - redis-insight:/data
+    networks:
+      - app-net
 
 
 #  # Cassandra - хранение телеметрии
@@ -281,9 +294,10 @@ services:
       - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.enable-remote-write-receiver"
     depends_on:
       - postgres
- #     - redis
+      - redis
       - kafka
       - schema-registry
 #      - minio
@@ -306,31 +320,47 @@ services:
     networks:
       - app-net
 
-#  # Loki - централизованное логгирование
-#  loki:
-#    image: grafana/loki:2.9.0
-#    container_name: logs-loki
-#    ports:
-#      - "${LOKI_PORT}:3100"
-#    volumes:
-#      - ./infrastructure/loki/loki-config.yaml:/etc/loki/loki-config.yaml
-#      - loki_data:/loki
-#    command: [ "-config.expand-env", "-config.file=/etc/loki/loki-config.yaml" ]
-#    depends_on:
-#      - promtail
-#    networks:
-#      - app-net
-#
-#  # Promtail - отправка логов в Loki
-#  promtail:
-#    image: grafana/promtail:3.4.4
-#    container_name: logs-promtail
-#    volumes:
-#      - ./infrastructure/promtail:/mnt/logs
-#      - /var/log:/var/log
-#    command: [ "-config.expand-env", "-config.file=/mnt/logs/promtail-config.yaml" ]
-#    networks:
-#      - app-net
+  # Loki - централизованное логгирование
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: logs-loki
+    ports:
+      - "${LOKI_PORT}:3100"
+    volumes:
+      - ./infrastructure/loki/loki-config.yaml:/etc/loki/loki-config.yaml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/loki-config.yaml
+    networks:
+      - app-net
+
+
+  grafana-agent:
+    image: grafana/agent:latest
+    container_name: grafana-agent
+    command:
+      - "--config.file=/etc/agent/agent.yaml"
+    volumes:
+      - ./infrastructure/grafana-agent/agent-config.yaml:/etc/agent/agent.yaml
+    ports:
+      - "4317:4317"  # OTLP (gRPC)
+      - "4318:4318"  # OTLP (HTTP)
+    networks:
+      - app-net
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo-tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - tempo_data:/tmp/tempo
+      - ./infrastructure/tempo/tempo.yaml:/etc/tempo.yaml
+    ports:
+      - "4317:4317"  # gRPC
+      - "4318:4318"  # HTTP
+      - "3200:3200"  # UI
+    networks:
+      - app-net
+
 
   node-exporter:
     image: bitnami/node-exporter:latest
@@ -417,6 +447,9 @@ volumes:
   cassandra-data2:
   cassandra-data3:
   cadvisor:
+  redis-insight:
+  tempo_data:
+#  grafana-agent:
 
 
 networks:

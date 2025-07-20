@@ -1,0 +1,61 @@
+server:
+  port: 9993
+
+spring:
+  application:
+    name: device-service
+  profiles:
+    # active: flyway-ds0 # Профиль для миграций в первую базу
+    # active: flyway-ds1 # Профиль для миграций во вторую базу
+    active: sharding # Профиль где работает shardingsphere и отключены миграции
+
+  data:
+    redis:
+      #host: localhost
+      host: device-redis
+      port: 6379
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/devices
+          jwk-set-uri: http://auth-keycloak:8080/realms/devices/protocol/openid-connect/certs
+
+logging:
+  level:
+    ru.savin.deviceservice: DEBUG   # Уровень логов для приложения
+    org.springframework: INFO  # Уровень логов Spring
+    #io.opentelemetry: DEBUG
+
+
+otel:
+  service:
+    name: device-service
+  traces:
+    exporter: otlp
+  exporter:
+    otlp:
+      endpoint: http://grafana-agent:4317
+      protocol: grpc
+
+#Метрики
+management:
+  server:
+    port: 9993
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics
+  endpoint:
+    prometheus:
+      access: read_only
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: events-service
+    enable:
+      all: true
+
+

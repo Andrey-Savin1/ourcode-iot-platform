@@ -1,0 +1,11 @@
+spring:
+  flyway:
+    enabled: false # Отключаем Flyway для этого профиля
+  datasource:
+    driver-class-name: org.apache.shardingsphere.driver.ShardingSphereDriver
+    url: jdbc:shardingsphere:classpath:sharding-test.yaml
+
+logging:
+  level:
+    ru.savin.devicecollectorservice: DEBUG   # Уровень логов для приложения
+    org.springframework: INFO                # Уровень логов Spring

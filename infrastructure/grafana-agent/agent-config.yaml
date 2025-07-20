@@ -1,0 +1,25 @@
+
+# Метрики (Metrics)
+metrics:
+  global:
+    scrape_interval: 15s
+  configs:
+    - name: default
+      remote_write:
+        - url: http://localhost:9090/api/v1/write
+      scrape_configs:
+        - job_name: "device-service"
+          static_configs:
+            - targets: ["device-service:9993"]
+
+traces:
+  configs:
+    - name: default
+      receivers:
+        otlp:
+          protocols:
+            grpc: # Для порта 4317
+            http: # Для порта 4318
+      remote_write:
+        - endpoint: tempo-tempo:4317  # Tempo gRPC endpoint
+          insecure: true

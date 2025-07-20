@@ -1,0 +1,13 @@
+
+spring:
+  datasource:
+    #url: jdbc:postgresql://localhost:5433/device_0
+    url: jdbc:postgresql://postgres:5432/device_0
+    username: admin
+    password: admin
+    driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/device_0
+
+

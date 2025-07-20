@@ -2,8 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/events-collector-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/events-collector-service.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/events-collector-service.test.iml" filepath="$PROJECT_DIR$/.idea/modules/events-collector-service.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/device-collector-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/device-collector-service.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/device-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/device-service.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/device-service.test.iml" filepath="$PROJECT_DIR$/.idea/modules/device-service.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/ourcode-iot-platform.iml" filepath="$PROJECT_DIR$/ourcode-iot-platform.iml" />
     </modules>
   </component>

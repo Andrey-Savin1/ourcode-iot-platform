@@ -1,0 +1,18 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+exporters:
+  logging:
+    verbosity: detailed
+  otlp:
+    endpoint: jaeger:14250
+    insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [logging, otlp]

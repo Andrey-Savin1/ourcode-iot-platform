@@ -1,0 +1,23 @@
+@startuml
+!include <c4/C4_Container.puml>
+!include <office/Users/user.puml>
+
+title Контейнерная (С4) диаграмма.
+
+Container_Boundary(Remote, "Device Service") {
+    Container(API_Orchestrator , API Orchestrator, "Spring Boot", "Оркестратор: вызывает event-, device- и command-сервисы")
+    Container(Device, Device service, "Spring Boot",  "API Orchestrator -> Device -> Postgres")
+    Container_Ext(PostgreSQL, PostgreSql,"Sharding/SQL", "Cообщения о новых и изменённых устройствах")
+    Container_Ext(Keycloak, "Аутентификация", "Keycloak", "Управление пользователями и ролями")
+    Container_Ext(Redis, "Cache", "Redis", "Кеширование устройств")
+
+}
+Rel(API_Orchestrator, Device, "CRUD Операции с устройствами")
+Rel(Device, Keycloak, "CRUD Операции с устройствами")
+Rel(Keycloak, Device, "CRUD Операции с устройствами")
+Rel(Device, PostgreSQL, "Cохраняет/обновляет информацию о устройствах")
+Rel(Device, "Redis", "Возвращает информацию об устройствах")
+
+
+
+@enduml

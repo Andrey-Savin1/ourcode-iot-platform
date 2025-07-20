@@ -1,0 +1,22 @@
+@startuml
+!include <C4/C4_Context.puml>
+!include <office/Users/user.puml>
+
+LAYOUT_WITH_LEGEND()
+
+title Контекстная диаграмма device-service
+
+System(API_Orchestrator , API Orchestrator,  "Оркестратор: вызывает event-, device- и command-сервисы")
+System(Device, Device Service, "Сервис выполняющий CRUD операции над устройствами")
+System_Ext(PostgreSQL, PostgreSql, "Информация о новых и изменённых устройствах")
+System_Ext(Redis, "Redis", "Кеширование устройств")
+System_Ext(Keycloak,  "Keycloak", "Authorization/Authentication")
+
+
+Rel(API_Orchestrator, Device, "REST")
+Rel(Device, Keycloak, "REST")
+Rel(Keycloak, Device, "REST")
+Rel(Device, PostgreSQL, "Хранение входящей информации об устройстве")
+Rel(Device, Redis, "Хранение входящей информации об устройстве")
+
+@enduml

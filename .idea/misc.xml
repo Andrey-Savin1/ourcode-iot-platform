@@ -3,6 +3,7 @@
   <component name="ExternalStorageConfigurationManager" enabled="true" />
   <component name="FrameworkDetectionExcludesConfiguration">
     <file type="web" url="file://$PROJECT_DIR$/device-collector-service" />
+    <file type="web" url="file://$PROJECT_DIR$/device-service" />
     <file type="web" url="file://$PROJECT_DIR$/events-collector-service" />
   </component>
   <component name="ProjectRootManager" version="2" languageLevel="JDK_21_PREVIEW" project-jdk-name="21" project-jdk-type="JavaSDK">

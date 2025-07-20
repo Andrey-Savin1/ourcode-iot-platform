@@ -1,0 +1,38 @@
+
+@startuml
+!include <C4/C4_Component>
+
+title Диаграмма компонентов с read-through кэшированием
+
+Container(backend, "Device-service", "Java/Spring Boot") {
+
+  Component(device_controller, "DeviceController", "REST Controller", "Принимает запросы от API_Orchestrator")
+  Component(device_service, "DeviceService", "Service Layer", "Обработка запросов")
+  Component(shardingsphere, "Shardingsphere", "Proxy", "Транслирует запросы на нужный шард")
+  Component(device_repo, "DeviceRepository", "Repository Layer", "Слой репозитория")
+
+}
+
+ContainerDb(database, "База данных", Postgres, "Хранение устройств")
+Container(redis,"Кэш Redis", Redis, "Read-through кэширование")
+Container(keycloak, "Аутентификация", "Keycloak", "Управление пользователями и ролями")
+
+' --- Связи ---
+Rel(device_controller, keycloak, "Проверка ролей и доступа", "HTTPS")
+Rel(keycloak, device_controller, "Проверка ролей и доступа", "HTTPS")
+
+Rel(device_controller, device_service, "Запрашивает данные об устройствах", "Spring DI")
+
+' --- Read-through логика ---
+Rel(device_service, device_repo, "Читает данные", "через Shardingsphere")
+Rel(device_repo, shardingsphere, "Читает данные")
+
+Rel(shardingsphere, redis, "Get", "Redis API")
+
+' Cache miss: Redis -> DB
+Rel(redis, database, "Cache miss: запрашивает данные", "JDBC / Hibernate")
+
+' Альтернативно: если Cache Layer сам делает запрос к БД (не через Redis)
+Rel(shardingsphere, database, "Cache miss: запрашивает данные", "JDBC")
+
+@enduml

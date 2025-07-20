@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  device-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: device-service
+    hostname: device-service
+    ports:
+      - "9993:9993"
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://grafana-agent:4317
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+      - OTEL_SERVICE_NAME=device-service
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    external: true
+    name: app-network

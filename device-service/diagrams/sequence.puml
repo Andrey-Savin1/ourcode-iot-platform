@@ -1,0 +1,25 @@
+@startuml
+actor API_Orchestrator
+participant "DeviceController" as DC
+participant "DeviceService" as DS
+participant "Redis" as Redis
+database "PostgreSQL Shard N" as PGN
+
+
+API_Orchestrator -> DC : api/v1/devices/{id}
+DC -> DS : findDeviceById
+DS -> Redis : get(key)
+
+alt кэш хит
+    Redis --> DS : даннные
+    Redis ->  PGN: SELECT*FROM...
+else **кэш-промах** (данных нет в Redis)
+   Redis -> DS : null
+      DS -> PGN : SELECT * FROM ... WHERE id=key
+      PGN --> DS : Данные
+      DS -> Redis : set(key, данные)
+end
+DS -> DC : Данные
+DC -> API_Orchestrator : Данные
+
+@enduml
