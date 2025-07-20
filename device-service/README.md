@@ -32,7 +32,7 @@
 - 📄[`container`](./diagrams/container.puml)
 - 📄[`context`](./diagrams/context.puml)
 - 📄[`sequence`](./diagrams/sequence.puml)
-- 📄[`sequence`](./diagrams/component.puml)
+- 📄[`component`](./diagrams/component.puml)
 
 ## Инструкция по запуску:
 - Запуск инфраструктуры: из корня выполнить docker-compose up -d
